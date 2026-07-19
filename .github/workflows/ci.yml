@@ -30,10 +30,16 @@ jobs:
           distribution: 'temurin'
 
       - name: Install Maven
-        run: sudo apt-get install maven -y
+        run: sudo apt-get install -y maven
 
       - name: Run tests
-        run: mvn test -Dspring.datasource.url=jdbc:mysql://127.0.0.1:3306/productdb?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true -Dspring.datasource.username=root -Dspring.datasource.password=123456
+        env:
+          MYSQL_HOST: 127.0.0.1
+          MYSQL_PORT: 3306
+          MYSQL_DATABASE: productdb
+          MYSQL_USER: root
+          MYSQL_PASSWORD: 123456
+        run: mvn test
 
   build:
     needs: test
