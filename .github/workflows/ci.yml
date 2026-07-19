@@ -37,7 +37,7 @@ jobs:
           restore-keys: ${{ runner.os }}-m2
 
       - name: Run tests
-        run: mvn test -Dspring.datasource.url=jdbc:mysql://127.0.0.1:3306/productdb?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true -Dspring.datasource.username=root -Dspring.datasource.password=123456
+        run: chmod +x mvnw && ./mvnw test -Dspring.datasource.url=jdbc:mysql://127.0.0.1:3306/productdb?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true -Dspring.datasource.username=root -Dspring.datasource.password=123456
 
   build:
     needs: test
