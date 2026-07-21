@@ -9,15 +9,19 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+
 
 @Service
 public class ProductService {
 
     private static final Logger log = LoggerFactory.getLogger(ProductService.class);
     private final ProductRepository productRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
-    public ProductService(ProductRepository productRepository) {
+    public ProductService(ProductRepository productRepository, SimpMessagingTemplate messagingTemplate) {
         this.productRepository = productRepository;
+        this.messagingTemplate = messagingTemplate;
     }
 
     public Page<ProductResponse> getAllProducts(Pageable pageable) {
@@ -35,6 +39,7 @@ public class ProductService {
     public ProductResponse createProduct(ProductRequest request) {
         Product product = new Product(request.getName(), request.getPrice());
         Product saved = productRepository.save(product);
+        messagingTemplate.convertAndSend("/topic/products", "Nuevo producto creado: " + saved.getName());
         return toProductResponse(saved);
     }
 

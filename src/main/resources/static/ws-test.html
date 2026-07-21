@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product API – WebSocket Chat</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+
+        body {
+            background: #0f172a;
+            color: #e2e8f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 700px;
+            background: #1e293b;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: #334155;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .header h2 {
+            font-weight: 600;
+            color: #f1f5f9;
+        }
+
+        .token-section {
+            padding: 20px;
+            background: #0f172a;
+            border-bottom: 1px solid #334155;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .token-section label {
+            font-size: 14px;
+            color: #94a3b8;
+        }
+
+        .token-input {
+            display: flex;
+            gap: 10px;
+        }
+
+        .token-input input {
+            flex: 1;
+            padding: 10px 12px;
+            border: 1px solid #475569;
+            border-radius: 8px;
+            background: #1e293b;
+            color: #e2e8f0;
+            font-size: 14px;
+            outline: none;
+            transition: border 0.2s;
+        }
+
+        .token-input input:focus {
+            border-color: #38bdf8;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        .btn-connect {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-connect:hover {
+            background: #2563eb;
+        }
+
+        .btn-disconnect {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-disconnect:hover {
+            background: #dc2626;
+        }
+
+        .btn-send {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-send:hover {
+            background: #059669;
+        }
+
+        .actions {
+            padding: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .message-input {
+            flex: 1;
+            padding: 10px 12px;
+            border: 1px solid #475569;
+            border-radius: 8px;
+            background: #0f172a;
+            color: #e2e8f0;
+            outline: none;
+        }
+
+        .message-input:focus {
+            border-color: #38bdf8;
+        }
+
+        .output {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #0f172a;
+            min-height: 300px;
+            max-height: 500px;
+            border-top: 1px solid #334155;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .output p {
+            padding: 10px 12px;
+            border-radius: 8px;
+            background: #1e293b;
+            font-size: 14px;
+            word-break: break-word;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .output p.chat-message {
+            background: #1e3a5f;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .output p.notification {
+            background: #14532d;
+            border-left: 4px solid #10b981;
+        }
+
+        .output p.system {
+            background: #334155;
+            color: #94a3b8;
+            font-style: italic;
+            border-left: 4px solid #64748b;
+        }
+
+        .timestamp {
+            font-size: 11px;
+            color: #94a3b8;
+            margin-right: 8px;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .status {
+            padding: 8px 20px;
+            font-size: 13px;
+            background: #334155;
+            color: #cbd5e1;
+            text-align: center;
+        }
+
+        .status.connected {
+            background: #064e3b;
+            color: #d1fae5;
+        }
+
+        .status.disconnected {
+            background: #7f1d1d;
+            color: #fecaca;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h2>⚡ Product API – Chat & Notificaciones</h2>
+    </div>
+
+    <div class="token-section">
+        <label>Token JWT</label>
+        <div class="token-input">
+            <input type="text" id="token" placeholder="Pega tu token de acceso aquí..." autocomplete="off">
+            <button class="btn btn-connect" onclick="connect()">Conectar</button>
+            <button class="btn btn-disconnect" onclick="disconnect()">Desconectar</button>
+        </div>
+    </div>
+
+    <div class="actions">
+        <input type="text" id="message" class="message-input" placeholder="Escribe un mensaje en el chat...">
+        <button class="btn btn-send" onclick="sendMessage()">Enviar</button>
+    </div>
+
+    <div id="status" class="status">🔴 Desconectado</div>
+
+    <div id="output" class="output">
+        <p class="system">Esperando conexión...</p>
+    </div>
+</div>
+
+<script>
+    var stompClient = null;
+
+    function connect() {
+        var token = document.getElementById('token').value.trim();
+        if (!token) {
+            appendMessage('Por favor ingresa un token JWT.', 'system');
+            return;
+        }
+
+        var url = 'ws://localhost:8080/ws?token=' + encodeURIComponent(token);
+        var socket = new WebSocket(url);
+        stompClient = Stomp.over(socket);
+
+        stompClient.connect({}, function(frame) {
+            appendMessage('Conectado al servidor.', 'system');
+            updateStatus('🟢 Conectado', 'connected');
+
+            stompClient.subscribe('/topic/public', function(message) {
+                appendMessage(message.body, 'chat-message');
+            });
+
+            stompClient.subscribe('/topic/products', function(message) {
+                appendMessage('🔔 ' + message.body, 'notification');
+            });
+        }, function(error) {
+            appendMessage('Error de conexión: ' + error, 'system');
+            updateStatus('🔴 Error de conexión', 'disconnected');
+        });
+    }
+
+    function disconnect() {
+        if (stompClient != null) {
+            stompClient.disconnect(function() {
+                appendMessage('Desconectado.', 'system');
+                updateStatus('🔴 Desconectado', 'disconnected');
+                stompClient = null;
+            });
+        }
+    }
+
+    function sendMessage() {
+        var msg = document.getElementById('message').value.trim();
+        if (!msg) return;
+        if (stompClient && stompClient.connected) {
+            stompClient.send("/app/chat.sendMessage", {}, msg);
+            document.getElementById('message').value = '';
+        } else {
+            appendMessage('No estás conectado.', 'system');
+        }
+    }
+
+    function appendMessage(text, type) {
+        var output = document.getElementById('output');
+        var p = document.createElement('p');
+        var now = new Date();
+        var timestamp = now.toLocaleTimeString();
+        p.className = type || '';
+        p.innerHTML = '<span class="timestamp">' + timestamp + '</span>' + text;
+        output.appendChild(p);
+        output.scrollTop = output.scrollHeight;
+    }
+
+    function updateStatus(text, className) {
+        var status = document.getElementById('status');
+        status.textContent = text;
+        status.className = 'status';
+        if (className) status.classList.add(className);
+    }
+</script>
+</body>
+</html>
